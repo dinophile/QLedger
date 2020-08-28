@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -24,9 +25,16 @@ func main() {
 	}
 
 	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
+
 	if err != nil {
-		log.Panic("Unable to connect to Database:", err)
+		log.Panic("Database connection configuration error: ", err)
 	}
+
+	connectionErrorStatus := db.Ping()
+	if connectionErrorStatus != nil {
+		log.Panic("Cannot connect to database: ", err)
+	}
+
 	log.Println("Successfully established connection to database.")
 
 	// Migrate DB changes
@@ -85,6 +93,7 @@ func main() {
 
 func migrateDB(db *sql.DB) {
 	log.Println("Starting db schema migration...")
+	fmt.Println(db.Ping())
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
 		log.Panic("Unable to create database instance for migration:", err)
