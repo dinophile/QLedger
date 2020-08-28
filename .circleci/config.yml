@@ -28,11 +28,26 @@ jobs:
           command: psql $TEST_DATABASE_URL < schema.sql; go test ./... -race -p=1
           environment:
             TEST_DATABASE_URL: "postgres://test_user@0.0.0.0:5432/test_ledgerdb?sslmode=disable"
-  deploy:
+  
+  deploy: &deploy-environment
     docker: 
       - image: circleci/golang:1.11
+    working_directory: /go/src/github.com/RealImage/QLedger
     steps: 
-      - run: echo "deploy"
+      - checkout
+      - setup_remote_docker
+      - run: bash ./scripts/install_terraform.sh
+      - run: bash ./scripts/apply_${tag}.sh
+
+  deploy_stage:
+    <<: *deploy-environment
+    environment:
+      tag: stage
+
+  deploy_prod:
+    <<: *deploy-environment
+    environment:
+      tag: prod
 
 workflows:
   version: 2
@@ -43,7 +58,7 @@ workflows:
             branches:
               only: 
                 - master
-      - deploy:
+      - deploy_stage:
           requires:
             - build_and_test
           filters:
