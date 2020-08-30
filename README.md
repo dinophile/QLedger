@@ -43,14 +43,14 @@ I understand the principles of connecting to providers, and using their APIs to 
 So starting from the beginning:
 
 ##### Steps:
-[Setting up my provider](#step-1-setting-up-my-provider)
-[Adding variables](#step-2-adding-variables)
-[Adding Cloudwatch for some basic monitoring](#step-3-cloudwatch-for-basic-monitoring)
-[Setting up the VPC](#step-4-setting-up-the-vpc)
-[Adding Security Groups](#step-5-security-groups)
-[Creating my ECR repo](#step-6-creating-the-ecr-repo)
-[Setting up a load balancer](#step-7-adding-a-load-balancer)
-[Setting up my ECS cluster](#step-8-finally-provisioning-the-ecs-cluster)
+1. [Setting up my provider](#step-1-setting-up-my-provider)
+2. [Adding variables](#step-2-adding-variables)
+3. [Adding Cloudwatch for some basic monitoring](#step-3-cloudwatch-for-basic-monitoring)
+4. [Setting up the VPC](#step-4-setting-up-the-vpc)
+5. [Adding Security Groups](#step-5-security-groups)
+6. [Creating my ECR repo](#step-6-creating-the-ecr-repo)
+7. [Setting up a load balancer](#step-7-adding-a-load-balancer)
+8. [Setting up my ECS cluster](#step-8-finally-provisioning-the-ecs-cluster)
 
 #### Step 1 Setting up my Provider
 
