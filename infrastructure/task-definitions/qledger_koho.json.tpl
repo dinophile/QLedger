@@ -6,16 +6,16 @@
     "entryPoint": [],
     "environment": [],
     "essential": true,
-    "image": "${account}.dkr.ecr.${region}.amazonaws.com/qledger:${tag}",
+    "image": "${aws_ecr_repository.qledger_koho.repository_url}",
     "logConfiguration": {
       "logDriver": "awslogs",
       "option": {
         "awslogs-group": "/$env/qledger",
         "awslogs-region": "${region}",
-        "awslogs-stream-prefix": "qledger-KOHO"
+        "awslogs-stream-prefix": "qledger_koho"
       }
     },
-    "name": "qledger-KOHO",
+    "name": "qledger_koho",
     "portMappings" : [
       {
         "containerPort": ${app_port},

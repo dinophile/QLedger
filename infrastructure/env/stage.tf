@@ -1,20 +1,18 @@
 terraform {
   backend "s3" {
-    bucket "qledger-koho"
-    key = "stage_inf.tfstate"
-    region =  var.AWS_REGION
+    bucket = "qledger-inf-state"
+    key    = "stage_inf.tfstate"
+    region = "us-east-1"
   }
 }
 
 provider "aws" {
-  access_key = var.AWS_ACCESS_KEY
-  secret_key = var.AWS_SECRET_KEY
-  region     = var.AWS_REGION
+  shared_credentials_file = "$HOME/.aws/credentials"
   profile = "default"
+  region  = "us-east-1"
 }
 
-module "qledger-KOHO"{
-  source = "../../definitions"
-
-  qledger_task_definition_path = "../../task-defintions/qledger.json.tpl"
+module "qledger_koho" {
+  source                       = "../../definitions"
+  task_definition_path = var.qledger_koho_task_definition_path
 }
