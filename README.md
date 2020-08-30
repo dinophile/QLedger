@@ -1,283 +1,118 @@
-[![CircleCI](https://circleci.com/gh/RealImage/QLedger.svg?style=svg)](https://circleci.com/gh/RealImage/QLedger)
+## Deploying a go app to ECS
+### With Terraform and whole lot of finger crossing
 
-# QLedger
-Systems that manage money do so by managing its movement - by tracking where it moved from, where it moved to, how much moved and why. QLedger is a service that provides APIs to manage the structured movement of money.
+#### Follow me on my adventure:
 
-The there are two primitives in the system: **accounts** and **transactions**. Money moves between accounts by means of a transaction.
+Wherein I explain my decisions, if you're interested only in the steps I took working with Terraform skip to that [section](#so-how-did-i-get-here)!
 
-A **transaction** may have multiple *lines* - each line represents the change (*delta*) of money in one *account*. A valid transaction has a total delta of zero - no money is created or destroyed, and all money moved out of any account(s) has moved in to other account(s). QLedger validates all transactions made via the API with a zero delta check.
+I wanted to build out a solution fully in Terraform since writing `tf` files from scratch and deploying to ECS isn't something I'm familiar with!
 
-> Phrased another way, the law of conversation of money is formalized by the rules of double entry bookkeeping - money debited from any account must be credited to another account (and vice versa), implying that all transactions must have at least two entries (double entry) with a zero sum delta. QLedger makes it easy to follow these rules.
+I could have deployed to Heroku fairly easily but no, I decided now was a great time to challenge myself! (And to be fair, it was! I have learned more than I knew last week so still a win in my books!)
 
-Accounts do not need to be predefined - they are called into existence when they are first used.
+My first step was stretching myself and using the Qledger app suggestion. I haven't worked with production Go apps yet, so this was a great opportunity.
 
-All accounts and transactions are identified by a string identifier, which also acts an idempotency and an immutability key. Transactions once sent to the ledger cannot be changed - any 'modification' or reversal requires a new transaction. The safe recovery mechanism for all network errors is also a simple retry - as long as the identifier does not change the transaction will never be inadvertently duplicated.
+I first familiarized myself with the code and how I could get it opperational locally. And I can proudly say: It works on my machine! I did have to set up a Postgres docker container locally, and update the connection string to point to my local db. 
 
-## Transactions
+I did make one small addition to the code base. In `main.go:33` they use the `Open` method to check if the database is successfully reachable. But this method only checks that your config is correct, it doesn't actually open a connection. There's a lesson in variable naming in there somewhere.
 
-Transaction can be created as follows:
+So I added a quick check by connecting to the db using `Ping`. I'm thinking it might make a good PR, but I'm also looking to see if there are any reasons why `Open` was used instead. It would have saved me some time debugging the connection to Postgres if it was paired with `Ping`! Ah well, hindsight.
 
-`POST /v1/transactions`
-```
-{
-  "id": "abcd1234",
-  "lines": [
-    {
-      "account": "alice",
-      "delta": -100
-    },
-    {
-      "account": "bob",
-      "delta": 100
-    }
-  ],
-  ...
-}
-```
-> Transactions with a total delta not equal to zero will result in a `400 BAD REQUEST` error.
+So after running it locally I then built and ran the Qledger docker connecting to my Postgres container (using `docker build -t qledger .` along with `docker run --env-file=docker.env qledger`).
 
-Transaction `timestamp` by default will be the time at which it is created. If necessary(such as migration of existing
-transactions), can be overridden using the `timestamp` property in the payload as follows:
+I wanted to hand off a solution to you that should have been straight forward to run. Just `terraform init`, `plan` and `apply`. 
 
-`POST /v1/transactions`
-```
-{
-  "id": "abcd1234",
-  "timestamp": "2017-01-01 13:01:05.000",
-  ...
+It would have been glorious to build my app container (accounting for the RDS Postgres intance endpoint it needed to connect to in `docker.env`), then push that up to ECR, get it on my intented ECS cluster than bask in my victory.
 
-}
-```
+Alas, you can guess how this actually went.
 
-> The `timestamp` in the payload should be in the format `2006-01-02 15:04:05.000`.
+And I doubled down and tried to setup a pipeline in CircleCI. Which to be fair was mostly successful! Minus the key deploying and building phases. But they are on my list of TODOs once I can wrangle Terraform into submission.
 
-Transactions can have arbitrary number of key-value pairs maintained as a single JSON `data` which helps in grouping and filtering them by one or more criteria.
+A lot of my experience with previous Terraform projects used older APIs with Amazon. So there was a lot of googling to find out how resources should be named and what objects they might be expecting. So I'm glad to have gotten the chance to refresh how to navigate the Terraform and AWS' docs!
 
-The `data` can be arbitrary JSON value as follows:
-```
-{
-  "data": {
-    "active": true,
-    "status": "completed",
-    "codes": ["O123", "C123", "F123"],
-    "client_data": {
-      "interval": {
-        "invoice": "monthly"
-      }
-    },
-    "amount": 2000,
-    "expiry": "2017-12-01T05:00:00Z"
-  }
-}
-```
+So now I will document the steps I took to get this far, and I hope we get a chance to sit down and go over where I went wrong! I am also going to keep going. You can follow along in [Github](https://github.com/dinophile/QLedger)! I know, but try to contain your excitement!
 
-The transactions can be created with `data` as follows:
+I'll end this section with a thank you. It might seem weird to thank a company for the opportunity to take a tech challenge, but for me it gives me insight into how much I can accomplish and learn in a small time frame. So I'm thankful for the push! 
 
-`POST /v1/transactions`
-```
-{
-  "id": "abcd1234",
-  "lines": [
-    {
-      "account": "alice",
-      "delta": -100
-    },
-    {
-      "account": "bob",
-      "delta": 100
-    }
-  ],
-  "data": {
-    "christmas-offer": "",
-    "status": "completed",
-    "products": {
-      "qw": {
-          "tax": 14.5
-      }
-    },
-    "months": ["jan", "feb"],
-    "date": "2017-01-01"
-  }
-}
-```
+### So, how did I get here...
 
-Transactions can be updated multiple times with `data`. The existing `data` is always overwritten with the new `data` value.
+#### Terraform we meet again
+I'm fairly comfortable with the basics of Terraform, but overall I haven't had a lot of experience on large projects, or setting up a deployment from scratch. I've worked on small debugging tasks and API updates for Azure, GCP and some AWS.  
 
-The transaction with ID `abcd1234` is updated with `data` as follows:
+I understand the principles of connecting to providers, and using their APIs to provision and deploy products in theory. In practice however I will defnitely benefit on a team who I can learn and grow with!
 
-`PUT /v1/transactions`
-```
-{
-  "id": "abcd1234",
-  "data": {
-    "christmas-offer": "",
-    "hold-on": "",
-    "status": "completed",
-    "active": true,
-    "products": {
-      "qw": {
-          "tax": 18.0
-      }
-    },
-    "months": ["jan", "feb", "mar"],
-    "date": "2017-01-01",
-    "charge": 2000
-  }
-}
-```
+So starting from the beginning:
 
-## Accounts
+##### Steps:
+[Setting up my provider](#step-1-setting-up-my-provider)
+[Adding variables](#step-2-adding-variables)
+[Adding Cloudwatch for some basic monitoring](#step-3-cloudwatch-for-basic-monitoring)
+[Setting up the VPC](#step-4-setting-up-the-vpc)
+[Adding Security Groups](#step-5-security-groups)
+[Creating my ECR repo](#step-6-creating-the-ecr-repo)
+[Setting up a load balancer](#step-7-adding-a-load-balancer)
+[Setting up my ECS cluster](#step-8-finally-provisioning-the-ecs-cluster)
 
-An account with ID `alice` can be created with `data` as follows:
+#### Step 1 Setting up my Provider
 
-`POST /v1/accounts`
-```
-{
-  "id": "alice",
-  "data": {
-    "product": "qw",
-    "date": "2017-01-01"
-  }
-}
-```
+I started with my `env` folder and with `stage.tf`. My reasoning is that eventually I'd like to have steps for different environments so I would like to run different tasks based on the environment passed in by my pipeline.
 
-An account can be updated with `data` as follows:
+In `stage.tf` is where I put my provider connection as well as my backend to store project state. In this case using AWS as the provider, and S3 as the backend. 
 
-`PUT /v1/accounts`
-```
-{
-  "id": "alice",
-  "data": {
-    "product": "qw",
-    "date": "2017-01-05"
-  }
-}
-```
+The custom module came later on as I realized I wanted to organize my code a little better so we could use different environments so my understanding is this is like an entrypoint for Terraform after finising with this step.
+[back to steps](#steps)
 
-## Searching of accounts and transactions
+#### Step 2 Adding variables
+After setting up my provider I eventually organized my infrastructure into the folders `definitions`, `scrips`, `task-definitions`, to go with my `env` folder.
 
-The transactions and accounts can be filtered from the endpoints `GET /v1/transactions` and `GET /v1/accounts` with the search query formed using the bool clauses(`must` and `should`) and query types(`fields`, `terms` and `ranges`).
+In `definitions` I created `variables.tf`. I don't have a `tfvars` file here because my only 'secret' exposed is my account number. My plan was to get things working and then obscure that at a later time. I would not do this on a real world application though! I took that risk here in order to make things work. My AWS credentials are just stored locally so I didn't have to manage any company secrets. I added to `variables.tf` as I went along.
+[back to steps](#steps)
 
-### Query types:
+#### Step 3 Cloudwatch for basic monitoring
 
-##### `fields` query
+After setting up my variables I added `cloudwatch.tf`. I've seen this used as basic monitoring for proof of concept projects without getting too bogged down by larger logging platforms, so I've incorporated it here for this one as well. Here I've set it so that logs are named based on their environment and set a retention policy for 3 days.
+[back to steps](#steps)
 
-Find items where the specified column exists with the specified value in the specified range.
+#### Step 4 Setting up the VPC
 
-Example fields:
-- Field `{"id": {"eq": "ACME.CREDIT"}}` filters items where the column `id` is equal to `ACME.CREDIT`
-- Field `{"balance": {"ne": 0}}` filters items where the column `balance` is not equal to `0`.
-- Field `{"balance": {"lt": 0}}` filters items where the column `balance` is less than `0`
-- Field `{"timestamp": {"gte": "2017-01-01T05:30"}}` filters items where `timestamp` is greater than or equal to `2017-01-01T05:30`
-- Field `{"id": {"ne": "ACME.CREDIT"}}` filters items where the column `id` is not equal to `ACME.CREDIT`
-- Field `{"id": {"like": "%.DEBIT"}}` filters items where the column `id` ends with `.DEBIT`
-- Field `{"id": {"notlike": "%.DEBIT"}}` filters items where the column `id` doesn't ends with `.DEBIT`
+Time for a VPC! This setup was 100% new to me. I started by adding the `aws_availability_zones` data source so that I can get access to all zones available for my account.
 
-> The supported field operators are `lt`(less than), `lte`(less than or equal), `gt`(greater than), `gte`(greater than or equal), `eq`(equal), `ne`(not equal), `like`(like patterns), `notlike`(not like patterns).
+Then I set up my vpc resource, choosing a block of addresses to use. I believe that `enable_dns_support` is already defaulted to true, but `hostnames` is defaulted to false. I could have left off `dns_support` but it feels safe to keep in there!
 
-##### `terms` query
+Then I started with a public subnet, with the intention to go back in to create a private one eventually as well. I have set `az_count` as a variable so that can be managed across the code base. And I set up 8 addresses (leaving the other 8 for when I get to the private subnet). I will not pretend to be totally familiar with the deep details about calculating address lengths at all! Networking is also on my "Keep learning a bit more about this as you go!" list!
 
-Filters items where the specified key-value pairs in a term exists in the `data` JSON.
+Finally I create an internet gateway to my VPC so that traffic can reach it.
+[back to steps](#steps)
 
-Example terms:
-- Term `{"status": "completed", "active": true}` filters items where `data.status` is `completed` AND `data.active` is `true`
-- Term `{"months": ["jan", "feb", "mar"]}` filters items where values `jan`, `feb` AND `mar` in `data.months` array
-- Term `{"products":{"qw":{"tax":18.0}}}` filters items where subset `{"qw": {"tax": 18.0}}` in `products` object
+#### Step 5 Security Groups
 
-##### `range` query
+Next I set my security groups after setting up the VPC. This is so far off of production level standard though and I'm aware of that! I just wanted this to be as easily accessible 'for now'. And in a production environment I'd lock down ports and and possibly IP addresses for ingress and egress as well (especially for internal APIs etc).
 
-Filters items which the specified key in `data` JSON exists in the specified range of values.
+I've seen an example before that calculated IP ranges based on your desired region and availability zone subnets. I clearly haven't applied that here! I don't have access to that code anymore, but I call it out here because for certain services you might want to do this! Like region blocking to avoid having to comply with GDPR. Not that I condone that of course. 
+[back to steps](#steps)
 
-Example range:
-- Range `{"charge": {"gte": 2000, "lte": 4000}}` filters items where `data.charge >= 2000` AND `data.charge <= 4000`
-- Range `{"date": {"gt": "2017-01-01","lt": "2017-06-31"}}` filters items where `data.date > '2017-01-01'` AND `data.date < '2017-01-31'`
-- Range `{"type": {"is": null}}` filters items where `data.type` is `NIL`
-- Range `{"type": {"is": null}}` filters items where `data.type` is not `NIL`
-- Range `{"action": {"in": ["intent", "invoice"]}}` filters items where `data.action` is ANY of `("intent", "invoice")`
-- Range `{"action": {"nin": ["charge", "refund"]}}` filters items where `data.action` is NOT ANY of `("charge", "refund")`
+#### Step 6 Creating the ECR repo
 
-> The supported range operators are `lt`(less than), `lte`(less than or equal), `gt`(greater than), `gte`(greater than or equal), `eq`(equal), `ne`(not equal), `like`(like patterns), `notlike`(not like patterns), `is`(is null checks), `isnot`(not null checks), `in`(ANY of list), `nin`(NOT ANY of list).
+Next I set up an ECR repo so that when I finally write the build step I have somewhere to push my app's image! This seems very straightforward, and I added a lifecycle policy to keep the repo from getting clogged up with uneccessary images. I can't imagine AWS _wouldn't_ charge you for storage there and/or that there wouldn't also be limits.
+[back to steps](#steps)
+
+#### Step 7 Adding a load balancer
+
+Next came the load balancer. Using V2 of ELB, I set up an application load balancer. I understand that compared to the network load balancer you get a little more access to network traffic as it comes in so you can do additional routing. Also everything I read for setting up ECS said "use an application loadbalancer"! 
+
+This I set up according to the docs, adding an additional timeout value (upping it from the default of 60s to 5m).
+[back to steps](#steps)
+
+#### Step 8 Finally provisioning the ECS cluster
+
+Finally the big moment: provisioning my container cluster! Why did I choose ECS instead of EKS? Honestly, who can learn EKS in a few days? Kubernetes is a lifelong journey (a short one but still...). I'm still in the phase of trying to setup a cluster on bare metal at home so I can try to get a hands on understanding of all the moving parts. I know that starting with the deep dive vs getting stuck in with services that make using a platform easier isn't always the best approach when in the real world. Sometimes you have to get things out the door first. But personally I do like trying to do a deep dive on technology that I'm responsible for (ideally before being responsible for it!). Espcially one as complicated as Kubernetes. There are a lot of ways to make mistakes managing a cluster even if you're using a managed service! I want to be ready to create hardened infrastructure when I get my chance to!
+
+I initialize the cluster and name it, create a data source so my task definition template (in `task_definitions`) can be set up for the cluster, then finally create my ECS service. Connecting other moving parts like my load balancer, security groups, and my account's public subnet. 
+
+So here is where I hit a wall. I've followed documentation, I've read blog posts and creeped on code on Github. But I'm not successful in getting my `terraform plan` green on this step. So currently I'm deep in the AWS/Terraform docs trying to make sense of what I have set up so far.
+[back to steps](#steps) or [back to top](#deploying-a-go-app-to-ecs)
 
 
-### Bool clauses:
-The following bool clauses determine whether all or any of the queries needs to be satisfied.
-
-##### `must` clause
-All of the query items in the `must` clause must be satisfied to get results.
-
-> The `must` clause can be equated with boolean `AND`
-
-Example: The following query matches requests to match accounts which satisfies **ALL** of the following items:
-
-- Field `balance > 0`
-- Term `data.type` is `credit` AND `data.active` is `true`
-- Term `data.months` with values `jan`, `feb` AND `mar`
-- Range `data.coupon >= 2000` AND `data.coupon >= 4000`
-- Range `data.date > '2017-01-01'` AND `data.date < '2017-06-31'`
-
-`GET /v1/accounts`
-```
-{
-  "query": {
-      "must": {
-        "fields": [
-            {"balance": {"gt": 0}}
-        ],
-        "terms": [
-            {"type": "credit", "active": true},
-            {"months": ["jan", "feb", "mar"]}
-        ],
-        "ranges": [
-            {"coupon": {"gte": 2000, "lte": 4000}},
-            {"date": {"gt": "2017-01-01","lt": "2017-06-31"}}
-        ]
-      }
-  }
-}
-```
-
-##### `should` clause
-Any of the query items in the `should` clause should be satisfied to get results.
-
-> The `should` clause can be equated with boolean `OR`
->
-Example: The following query matches requests to match transactions which satisfies **ANY** of the following items:
-
-- Field `id = '2017-06-31T05:00:45'`
-- Term `data.type` is `company.credit` AND `order_id` is `001`
-- Range `data.timestamp >= '2017-01-01T05:30'`
-
-`GET /v1/accounts`
-```
-{
-  "query": {
-      "should": {
-        "fields": [
-            {"id": {"eq": "intent_QW_001"}}
-        ],
-        "terms": [
-            {"type": "company.credit", "order_id": "001"}
-        ],
-        "ranges": [
-            {"timestamp": {"gte": "2017-01-01T05:30"}}
-        ]
-      }
-  }
-}
-```
 
 
-**Note:**
-
-- This search API follows a subset of [Elasticsearch querying](https://www.elastic.co/guide/en/elasticsearch/reference/current/term-level-queries.html) format.
-
--  Clients those doesn't support passing search payload in the `GET`, can alternatively use the `POST`  endpoints: `POST /v1/transactions/_search` and `POST /v1/accounts/_search`.
-
-- A search query can have both `must` and `should` clauses.
-
-- Transactions in the search result are ordered chronological by default.
 
 
-## Environment Variables:
-
-Please read the documentation of all QLedger environment variables [here](./context#environment-variables)
