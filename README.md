@@ -29,7 +29,9 @@ And I doubled down and tried to setup a pipeline in CircleCI. Which to be fair w
 
 A lot of my experience with previous Terraform projects used older APIs with Amazon. So there was a lot of googling to find out how resources should be named and what objects they might be expecting. So I'm glad to have gotten the chance to refresh how to navigate the Terraform and AWS' docs!
 
-So now I will document the steps I took to get this far, and I hope we get a chance to sit down and go over where I went wrong! I am also going to keep going. You can follow along in [Github](https://github.com/dinophile/QLedger)! I know, but try to contain your excitement!
+So now I will document the steps I took to get this far, and I hope we get a chance to sit down and go over where I went wrong! I am also going to keep going. You can follow along in [Github](https://github.com/dinophile/QLedger)! I know, but try to contain your excitement! 
+
+Note that my `.tf` files are all in the `infrastructure` folder, and that I would never set up a project like this at all! My goal is to separate the code and set up the pipeline to interact with a separate repo to finish the build and deploy steps. 
 
 I'll end this section with a thank you. It might seem weird to thank a company for the opportunity to take a tech challenge, but for me it gives me insight into how much I can accomplish and learn in a small time frame. So I'm thankful for the push! 
 
@@ -39,8 +41,6 @@ I'll end this section with a thank you. It might seem weird to thank a company f
 I'm fairly comfortable with the basics of Terraform, but overall I haven't had a lot of experience on large projects, or setting up a deployment from scratch. I've worked on small debugging tasks and API updates for Azure, GCP and some AWS.  
 
 I understand the principles of connecting to providers, and using their APIs to provision and deploy products in theory. In practice however I will defnitely benefit on a team who I can learn and grow with!
-
-So starting from the beginning:
 
 ##### Steps:
 1. [Setting up my provider](#step-1-setting-up-my-provider)
@@ -64,7 +64,7 @@ The custom module came later on as I realized I wanted to organize my code a lit
 #### Step 2 Adding variables
 After setting up my provider I eventually organized my infrastructure into the folders `definitions`, `scrips`, `task-definitions`, to go with my `env` folder.
 
-In `definitions` I created `variables.tf`. I don't have a `tfvars` file here because my only 'secret' exposed is my account number. My plan was to get things working and then obscure that at a later time. I would not do this on a real world application though! I took that risk here in order to make things work. My AWS credentials are just stored locally so I didn't have to manage any company secrets. I added to `variables.tf` as I went along.
+In `definitions` I created `variables.tf`. ~~I don't have a `tfvars` file here because my only 'secret' exposed is my account number. My plan was to get things working and then obscure that at a later time~~. Nope: I scrubbed the account value from my git history using `git-filter-branch`. I think the risk was somewhat low, but **I should know better**! I would not do this on a real world application though! I took that risk here in order to make things work. My AWS credentials are just stored locally so I didn't have to manage any company secrets. I added to `variables.tf` as I went along.
 [back to steps](#steps)
 
 #### Step 3 Cloudwatch for basic monitoring
