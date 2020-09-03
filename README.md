@@ -116,3 +116,24 @@ So here is where I hit a wall. I've followed documentation, I've read blog posts
 [back to steps](#steps) or [back to top](#deploying-a-go-app-to-ecs)
 
 
+### Update 1
+
+## So here's where I'm at today:
+
+### vpc.tf
+
+Here I've updated the structure a bit with some defaults as a learning excercise, and updated the VPC's route table for my internet gateway. Without this I wasn't making sure traffic that matched my public subnet addresses would reach the gateway. For now the addresses are set to all traffic. I'd like to experiment with changing this to a particular region and test it out.
+
+I've also added my missing private subnet (for internal access to my application).
+
+### nat.tf
+If I want my private subnet to communicate with the outside world (maybe for updates etc?) I would set up a net network for one way traffic. Here I just play with the settings for that. Very similar setup to the vpc setting for the public subnet.
+
+## circleci.yml
+Ok back to the main task: build this app docker image! Can't have an app with no app!
+
+So here I'm playing with the circle config to start with at least the basics going step by step. After I can confirm a build my next step is to set up and ECR registry using my terraform setup and then push my image there.
+
+Once I can get the image to ECR I'll dig into getting more familiar with and setting up a cluster to run the app on. And I'll need to provision and account for and RDS postgres db for my cluster as well. 
+
+Currently just sitting with yaml syntax errors. But will take a break and return to it after some fresh air. 
