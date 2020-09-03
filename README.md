@@ -101,6 +101,8 @@ Next I set up an ECR repo so that when I finally write the build step I have som
 
 Next came the load balancer. Using V2 of ELB, I set up an application load balancer. I understand that compared to the network load balancer you get a little more access to network traffic as it comes in so you can do additional routing. Also everything I read for setting up ECS said "use an application loadbalancer"! 
 
+For my target group I'm starting with an HTTP listener, with the plan to add an SSL listener later on. For production I wouldn't use HTTP, but it's nice to have if you're accessing it internally and HTTP can be faster. The health check will use the existing health route in the app `/ping`.
+
 This I set up according to the docs, adding an additional timeout value (upping it from the default of 60s to 5m).
 [back to steps](#steps)
 
@@ -108,7 +110,7 @@ This I set up according to the docs, adding an additional timeout value (upping 
 
 Finally the big moment: provisioning my container cluster! Why did I choose ECS instead of EKS? Honestly, who can learn EKS in a few days? Kubernetes is a lifelong journey (a short one but still...). I'm still in the phase of trying to setup a cluster on bare metal at home so I can try to get a hands on understanding of all the moving parts. I know that starting with the deep dive vs getting stuck in with services that make using a platform easier isn't always the best approach when in the real world. Sometimes you have to get things out the door first. But personally I do like trying to do a deep dive on technology that I'm responsible for (ideally before being responsible for it!). Espcially one as complicated as Kubernetes. There are a lot of ways to make mistakes managing a cluster even if you're using a managed service! I want to be ready to create hardened infrastructure when I get my chance to!
 
-I initialize the cluster and name it, create a data source so my task definition template (in `task_definitions`) can be set up for the cluster, then finally create my ECS service. Connecting other moving parts like my load balancer, security groups, and my account's public subnet. 
+I initialize the cluster and name it, create a data source so my task definition template (in `task_definitions`) can be set up for the cluster, then finally create my ECS service. Connecting other moving parts like my load balancer, security groups, and my account's public subnet. I also make my `task_definition` file available here as a data source, and note that I'm using the same port for region and host. This is also not production ready, as I believe you'd use different ports for each.
 
 So here is where I hit a wall. I've followed documentation, I've read blog posts and creeped on code on Github. But I'm not successful in getting my `terraform plan` green on this step. So currently I'm deep in the AWS/Terraform docs trying to make sense of what I have set up so far.
 [back to steps](#steps) or [back to top](#deploying-a-go-app-to-ecs)
