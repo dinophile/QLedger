@@ -1,4 +1,4 @@
-version: 2
+version: 2.1
 jobs:
   build_and_test:
     docker:
@@ -29,39 +29,33 @@ jobs:
           environment:
             TEST_DATABASE_URL: "postgres://test_user@0.0.0.0:5432/test_ledgerdb?sslmode=disable"
   
-  deploy: &deploy-environment
-    docker: 
-      - image: circleci/golang:1.11
+  build_and_deploy:
     working_directory: /go/src/github.com/RealImage/QLedger
-    steps: 
+    steps:
       - checkout
-      - setup_remote_docker
-      - run: bash ./scripts/install_terraform.sh
-      - run: bash ./scripts/apply_${tag}.sh
+      - run:
+          name: "Build qledger_koho docker image"
+          command: docker build --build-arg AWS_RDS_DB_URL=${AWS_RDS_DB_URL_STAGE}-t qledger_koho .
 
-  deploy_stage:
-    <<: *deploy-environment
-    environment:
-      tag: stage
-
-  deploy_prod:
-    <<: *deploy-environment
-    environment:
-      tag: prod
-
+orbs:
+  aws-ecr: circleci/aws_ecr@6.12.2
+  aws-ecs: circleci/aws_ecs@1.3.0
+          
 workflows:
-  version: 2
-  stage_deploy:
+  version: 2.1
+  build_and_test:
     jobs:
-      - build_and_test:
-          filters:
-            branches:
-              only: 
-                - master
-      - deploy_stage:
+      - build_and_test
+  build_and_deploy:
+    jobs:
+      - aws-ecr/build-and-push-image
           requires:
             - build_and_test
-          filters:
-            branches:
-              only: 
-                - master
+          repo: "${AWS_RESOURCE_NAME_PREFIX}"
+          tag: "${CIRCLE_SHA1}"
+      - aws-ecs/deploy-service-update
+          requires:
+            - aws-ecr/build-and-push-image
+          family: "${AWS_RESOURCE_NAME_PREFIX}-service"
+          cluster-name: "${AWS_RESOURCE_NAME_PREFIX}-cluster"
+          container-image-name-updates: "container=${AWS_RESOURCE_NAME_PREFIX}-service,tag=${CIRCLE_SHA1}"
