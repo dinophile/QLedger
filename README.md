@@ -3,6 +3,8 @@
 
 #### Follow me on my adventure:
 
+#### [Update](#update-1) Sep, 3, 2020 
+
 Wherein I explain my decisions, if you're interested only in the steps I took working with Terraform skip to that [section](#so-how-did-i-get-here)!
 
 I wanted to build out a solution fully in Terraform since writing `tf` files from scratch and deploying to ECS isn't something I'm familiar with!
@@ -110,9 +112,5 @@ I initialize the cluster and name it, create a data source so my task definition
 
 So here is where I hit a wall. I've followed documentation, I've read blog posts and creeped on code on Github. But I'm not successful in getting my `terraform plan` green on this step. So currently I'm deep in the AWS/Terraform docs trying to make sense of what I have set up so far.
 [back to steps](#steps) or [back to top](#deploying-a-go-app-to-ecs)
-
-
-
-
 
 
